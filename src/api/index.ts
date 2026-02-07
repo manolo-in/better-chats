@@ -1,10 +1,22 @@
-import { getProcedure } from "./procedure.ts";
+import { publicProcedure } from "./procedure.ts";
 
-export const appRouter = {
-	okay: getProcedure("user")
-		.route({ method: "GET" })
-		.handler((c): "OK" => {
-			return "OK";
-		}),
+export const testRouter = {
+	test: {
+		user: publicProcedure
+			.route({ method: "GET" })
+			.meta({
+				permission: "user",
+			})
+			.handler(({ input }) => {
+				return "Hi Man";
+			}),
+		system: publicProcedure
+			.route({ method: "GET" })
+			.meta({
+				permission: "system",
+			})
+			.handler(({ input }) => {
+				return "Hi Man";
+			}),
+	},
 };
-export type AppRouter = typeof appRouter;

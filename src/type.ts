@@ -62,7 +62,8 @@ export type Context<UD extends UserData = UserData> = {
 	user: UD;
 };
 
-export type UserCheckFunction<UD extends UserData = UserData> = (
-	data: UD,
-	permission: PermissionStrings,
-) => Promise<boolean> | boolean;
+export type UserCheckFunction<
+	PS = PermissionStrings,
+	UD = UserData,
+	GD = GroupData,
+> = (permission: PS, user: UD, chat: GD) => Promise<boolean> | boolean;

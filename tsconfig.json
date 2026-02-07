@@ -22,7 +22,10 @@
 		"lib": ["ES2021"],
 		"module": "nodenext",
 		"target": "ES2021",
-		"stripInternal": true
+		"stripInternal": true,
+		"paths": {
+			"@/*": ["./src/*"],
+		}
 	},
 	"include": ["."],
 	"exclude": ["*/dist", "dist", "build", "node_modules"]

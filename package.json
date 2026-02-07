@@ -21,21 +21,32 @@
 			"import": "./dist/index.mjs",
 			"require": "./dist/index.js"
 		},
+		"storage": {
+			"types": "./dist/storage/index.d.ts",
+			"import": "./dist/storage/index.mjs",
+			"require": "./dist/storage/index.js"
+		},
+		"client": {
+			"types": "./dist/client/index.d.ts",
+			"import": "./dist/client/index.mjs",
+			"require": "./dist/client/index.js"
+		},
 		"./type": {
 			"types": "./dist/type.d.ts"
 		}
 	},
 	"dependencies": {
-		"@orpc/server": "^1.13.4"
+		"@orpc/server": "^1.13.4",
+		"zod": "^3.25.67"
 	},
 	"devDependencies": {
 		"@types/node": "20.17.24",
 		"hono": "^4.11.8",
 		"tsdown": "^0.15.10",
-		"typescript": "5.6.3",
-		"zod": "^3.25.67"
+		"typescript": "5.6.3"
 	},
 	"peerDependencies": {
+		"@orpc/server": "^1.13.0",
 		"zod": "^3.0.0"
 	},
 	"engines": {

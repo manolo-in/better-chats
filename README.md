@@ -12,7 +12,7 @@ npm i better-chats
 ```ts
 import { Hono } from "hono";
 import { betterChat } from "better-chats";
-import { storage } from "better-chats/supabase.ts";
+import { storage } from "better-chats/supabase";
 
 const chat = betterChat({
 	permission: {
@@ -24,20 +24,44 @@ const chat = betterChat({
 		},
 	},
 	storage: storage(),
-	userCheck: (data: { id: string }, type) => {
+	userCheck: (type, user, chat) => {
 		switch (type) {
-			case "group.update": return data.id === "rajat";
+			case "group.update":
+				return user.id === "rajat";
 		}
-		return false;
+		return true;
 	},
 });
 
 const app = new Hono({}).basePath("/api");
 
 app.on(["POST", "GET"], ["/chat/*"], (c) => {
-	const user = { id: "rajat" };
+	const user = { id: "rajat" }; // fetch ur user here
+
 	return chat.handler(c.req.raw, user);
 });
 
+export type ChatRouter = typeof chat.$type
 export default app;
+```
+
+## Client
+
+```ts
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import type { RouterClient } from "@orpc/server";
+
+export const link = new RPCLink({
+	url: `${baseUrl}/api/chat`,
+	fetch(url, options) {
+		return fetch(url, {
+			...options,
+			credentials: "include",
+		});
+	},
+});
+
+
+export const chatClient: RouterClient<ChatRouter> = createORPCClient(link);
 ```

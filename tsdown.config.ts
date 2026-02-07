@@ -8,4 +8,18 @@ export default defineConfig([
 			sourcemap: false,
 		},
 	},
+	{
+		entry: ["src/storage/index.ts"],
+		format: ["cjs", "esm"],
+		dts: {
+			sourcemap: false,
+		},
+	},
+	{
+		entry: ["src/client/index.ts"],
+		format: ["cjs", "esm"],
+		dts: {
+			sourcemap: false,
+		},
+	},
 ]);

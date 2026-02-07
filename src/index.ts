@@ -1,6 +1,7 @@
 import { RPCHandler } from "@orpc/server/fetch";
 import z from "zod";
-import { getProcedure } from "./api/procedure.ts";
+import { testRouter } from "./api/index.ts";
+import { publicProcedure } from "./api/procedure.ts";
 import type {
 	Permission,
 	StoragePlugin,
@@ -36,9 +37,12 @@ export const betterChat = <UD extends UserData>(
 	const { permission } = props;
 
 	const apiRouter = {
+		...testRouter,
 		group: {
-			get: getProcedure(permission.group.get)
-				.route({ method: "GET" })
+			get: publicProcedure
+				.meta({
+					permission: permission.group.get,
+				})
 				.input(
 					z.object({
 						id: z.string(),
@@ -49,8 +53,10 @@ export const betterChat = <UD extends UserData>(
 					return data;
 				}),
 
-			create: getProcedure(permission.group.create)
-				.route({ method: "GET" })
+			create: publicProcedure
+				.meta({
+					permission: permission.group.create,
+				})
 				.input(
 					z.object({
 						id: z.string().optional(),
@@ -77,8 +83,10 @@ export const betterChat = <UD extends UserData>(
 					return { ...coreData, data: input.data };
 				}),
 
-			update: getProcedure(permission.group.update)
-				.route({ method: "GET" })
+			update: publicProcedure
+				.meta({
+					permission: permission.group.update,
+				})
 				.input(
 					z.object({
 						id: z.string(),
@@ -93,8 +101,10 @@ export const betterChat = <UD extends UserData>(
 					return await storage.updateDoc(docId, input.data);
 				}),
 
-			delete: getProcedure(permission.group.delete)
-				.route({ method: "GET" })
+			delete: publicProcedure
+				.meta({
+					permission: permission.group.delete,
+				})
 				.input(
 					z.object({
 						id: z.string(),
@@ -113,9 +123,13 @@ export const betterChat = <UD extends UserData>(
 	} satisfies Permission<any>;
 
 	return {
+		$type: {} as typeof apiRouter,
 		api: apiRouter,
 		handler: async (raw: Request, user: UD) => {
-			const handler = new RPCHandler(apiRouter);
+			const handler = new RPCHandler(apiRouter, {
+				filter: ({ contract }) =>
+					!((contract["~orpc"].meta.permission as WhoCanDo) === "system"),
+			});
 
 			const { matched, response } = await handler.handle(raw, {
 				prefix: "/api/chat/",
