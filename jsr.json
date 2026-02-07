@@ -1,8 +1,8 @@
 {
-  "name": "@manolo/package",
-  "version": "0.0.1",
-  "license": "MIT",
-  "exports": {
-    ".": "./src/index.ts"
-  }
+	"name": "@manolo/better-chats",
+	"version": "0.0.1",
+	"license": "MIT",
+	"exports": {
+		".": "./src/index.ts"
+	}
 }

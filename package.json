@@ -1,11 +1,13 @@
 {
-	"name": "package",
-	"description": "Template for building packages",
+	"name": "better-chats",
+	"description": "Ever heard of better-auth? Same but for building chat",
 	"version": "0.0.1",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
 	"types": "./dist/index.d.ts",
-	"files": ["dist/**/*"],
+	"files": [
+		"dist/**/*"
+	],
 	"scripts": {
 		"build": "tsdown",
 		"build:watch": "tsdown --watch",
@@ -22,11 +24,12 @@
 			"types": "./dist/type.d.ts"
 		}
 	},
-	"dependencies": {},
+	"dependencies": {
+		"@orpc/server": "^1.13.4"
+	},
 	"devDependencies": {
-		"@types/bun": "^1.2.17",
 		"@types/node": "20.17.24",
-		"bun-plugin-dts": "^0.3.0",
+		"hono": "^4.11.8",
 		"tsdown": "^0.15.10",
 		"typescript": "5.6.3",
 		"zod": "^3.25.67"
@@ -42,10 +45,10 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/manolo-in/package.git"
+		"url": "git+https://github.com/manolo-in/better-chats.git"
 	},
 	"bugs": {
-		"url": "https://github.com/manolo-in/package/issues"
+		"url": "https://github.com/manolo-in/better-chats/issues"
 	},
 	"keywords": []
 }
