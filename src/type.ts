@@ -1,0 +1,68 @@
+export type WhoCanDo = "user" | "system";
+
+export type StoragePlugin = {
+	write: <Data = {}>(id: string, data: Data) => Promise<void>;
+	writeDoc: <Data = {}>(id: string, data: Data) => Promise<void>;
+
+	read: <Data = {}>(id: string) => Promise<Data>;
+	readDoc: <Data = {}>(id: string) => Promise<Data>;
+
+	update: <Data = {}>(id: string, data: Partial<Data>) => Promise<Data>;
+	updateDoc: <Data = {}>(id: string, data: Partial<Data>) => Promise<Data>;
+
+	delete: (id: string) => Promise<void>;
+	deleteDoc: (id: string) => Promise<void>;
+};
+
+export type Permission<T> = {
+	group: {
+		create: T;
+		get: T;
+		update: T;
+		delete: T;
+
+		// join: T;
+		// leave: T;
+
+		// getMembers: T;
+		// addMembers: T;
+		// removeMembers: T;
+
+		// makeAdmin: T;
+		// removeAdmin: T;
+
+		// getMessages: T;
+		// appendMessage: T;
+		// deleteMessage: T;
+	};
+};
+
+export type PermissionStrings<P = Permission<any>> = {
+	[K in keyof P]: {
+		[M in keyof P[K]]: `${K & string}.${M & string}`;
+	}[keyof P[K]];
+}[keyof P];
+
+export type UserData = {
+	id: string;
+};
+
+export type GroupData<GD = {}> = {
+	id: string;
+	data: GD;
+};
+
+export type MessageData<MD = {}> = {
+	id: string;
+	from: string;
+	data: MD;
+};
+
+export type Context<UD extends UserData = UserData> = {
+	user: UD;
+};
+
+export type UserCheckFunction<UD extends UserData = UserData> = (
+	data: UD,
+	permission: PermissionStrings,
+) => Promise<boolean> | boolean;
