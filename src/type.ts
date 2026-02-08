@@ -1,3 +1,5 @@
+import type { convertToDefault } from "./tools.ts";
+
 export type WhoCanDo = "user" | "system";
 
 export type StoragePlugin = {
@@ -12,6 +14,13 @@ export type StoragePlugin = {
 
 	delete: (id: string) => Promise<void>;
 	deleteDoc: (id: string) => Promise<void>;
+
+	getMessages: <MD = {}>(groupId: string) => Promise<MessageData<MD>[]>;
+	appendMessage: <MD = {}>(
+		groupId: string,
+		message: MessageData<MD>,
+	) => Promise<void>;
+	deleteMessage: (groupId: string, messageId: string) => Promise<void>;
 };
 
 export type Permission<T> = {
@@ -21,19 +30,19 @@ export type Permission<T> = {
 		update: T;
 		delete: T;
 
-		// join: T;
-		// leave: T;
+		join: T;
+		leave: T;
 
-		// getMembers: T;
-		// addMembers: T;
-		// removeMembers: T;
+		getMembers: T;
+		addMembers: T;
+		removeMembers: T;
 
-		// makeAdmin: T;
-		// removeAdmin: T;
+		makeAdmin: T;
+		removeAdmin: T;
 
-		// getMessages: T;
-		// appendMessage: T;
-		// deleteMessage: T;
+		getMessages: T;
+		appendMessage: T;
+		deleteMessage: T;
 	};
 };
 
@@ -45,6 +54,15 @@ export type PermissionStrings<P = Permission<any>> = {
 
 export type UserData = {
 	id: string;
+};
+
+export type CoreGroupData = {
+	id: string;
+	owner: string;
+	members: string[];
+	admins: string[];
+	createdAt: number;
+	updatedAt: number;
 };
 
 export type GroupData<GD = {}> = {
@@ -59,8 +77,9 @@ export type MessageData<MD = {}> = {
 };
 
 export type Context<UD extends UserData = UserData> = {
-	user: UD;
-};
+	user?: UD;
+	system: boolean;
+} & ReturnType<typeof convertToDefault>;
 
 export type UserCheckFunction<
 	PS = PermissionStrings,
