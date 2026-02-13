@@ -260,8 +260,19 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					}
 				}
 
+				// Validate that all users being added are not null or empty
+				const validUsers = input.users.filter(
+					(user) => user && user.trim().length > 0,
+				);
+				if (validUsers.length === 0) {
+					throw getError(
+						"UNPROCESSABLE_ENTITY",
+						"No valid users provided to add",
+					);
+				}
+
 				const updatedMembers = [
-					...new Set([...groupData.members, ...input.users]),
+					...new Set([...groupData.members, ...validUsers]),
 				];
 
 				return await context.storage.update(input.id, {
@@ -297,6 +308,15 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}
 
 				const userIdsSet = new Set(input.users);
+
+				// Prevent removal of the group owner
+				if (userIdsSet.has(groupData.owner)) {
+					throw getError(
+						"UNPROCESSABLE_ENTITY",
+						"Cannot remove the group owner",
+					);
+				}
+
 				const updatedMembers = groupData.members.filter(
 					(id: string) => !userIdsSet.has(id),
 				);
@@ -332,6 +352,14 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					if (groupData.owner !== userId) {
 						throw getError("UNAUTHORIZED", "Only owner can promote admins");
 					}
+				}
+
+				// Validate that the user to be promoted is a member of the group
+				if (!groupData.members.includes(input.user)) {
+					throw getError(
+						"UNPROCESSABLE_ENTITY",
+						"User must be a member of the group before becoming admin",
+					);
 				}
 
 				const updatedAdmins = [...new Set([...admins, input.user])];
@@ -370,6 +398,14 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}
 
 				const updatedAdmins = admins.filter((id: string) => id !== input.user);
+
+				// Prevent removal if it would result in zero admins (except owner as fallback)
+				if (updatedAdmins.length === 0) {
+					throw getError(
+						"UNPROCESSABLE_ENTITY",
+						"Cannot remove the last admin from the group",
+					);
+				}
 
 				return await context.storage.update(input.id, {
 					admins: updatedAdmins,

@@ -8,6 +8,12 @@ export const publicProcedure = orpc_os;
 
 const requireAuth = orpc_os.middleware(async ({ context, next }) => {
 	if (context.system) return next();
+	// return next({
+	// 	context: {
+	// 		user: undefined,
+	// 		system: true,
+	// 	},
+	// });
 
 	if (!context.user)
 		throw getError(
@@ -18,6 +24,7 @@ const requireAuth = orpc_os.middleware(async ({ context, next }) => {
 	return next({
 		context: {
 			user: context.user,
+			system: false,
 		},
 	});
 });

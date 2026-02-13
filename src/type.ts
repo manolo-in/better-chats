@@ -76,10 +76,17 @@ export type MessageData<MD = {}> = {
 	data: MD;
 };
 
-export type Context<UD extends UserData = UserData> = {
-	user?: UD;
-	system: boolean;
-} & ReturnType<typeof convertToDefault>;
+export type Context<UD extends UserData = UserData> = (
+	| {
+			user: UD;
+			system: false;
+	  }
+	| {
+			user: undefined;
+			system: true;
+	  }
+) &
+	ReturnType<typeof convertToDefault>;
 
 export type UserCheckFunction<
 	PS = PermissionStrings,
