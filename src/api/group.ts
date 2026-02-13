@@ -1,11 +1,11 @@
 import z from "zod";
 import { getError } from "@/error.ts";
 import type { CoreGroupData, Permission, WhoCanDo } from "@/type.ts";
-import { publicProcedure } from "./procedure.ts";
+import { protectedProcedure } from "./procedure.ts";
 
 export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 	({
-		get: publicProcedure
+		get: protectedProcedure
 			.meta({
 				permission: permission.get,
 			})
@@ -15,31 +15,59 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const data = await context.storage.read(input.id);
+				const data = await context.storage.read<CoreGroupData>(input.id);
+
+				if (!context.system) {
+					const userId = context.user?.id;
+
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (!data.members.includes(userId)) {
+						throw getError(
+							"UNAUTHORIZED",
+							"Only authorized members can read group data",
+						);
+					}
+				}
+
 				return data;
 			}),
 
-		create: publicProcedure
+		create: protectedProcedure
 			.meta({
 				permission: permission.create,
 			})
 			.input(
 				z.object({
 					id: z.string().optional(),
-					owner: z.string(),
+					owner: z.string().optional(),
 					members: z.array(z.string()),
 					data: z.record(z.string(), z.any()).optional(),
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const userId = context.system ? input.owner : context.user?.id;
+
+				if (!userId)
+					throw getError(
+						"UNAUTHORIZED",
+						context.system
+							? "Owner ID is not provided"
+							: "You are not authorized to access this action",
+					);
+
 				const id = input.id ?? context.tools.generateId();
 				const docId = context.tools.generateDocId(id);
 
 				const coreData = {
 					id,
-					owner: input.owner,
-					members: input.members,
-					admins: [input.owner],
+					owner: userId,
+					members: [...new Set([...input.members, userId])],
+					admins: [userId],
 					createdAt: Date.now(),
 					updatedAt: Date.now(),
 				} satisfies CoreGroupData;
@@ -50,14 +78,14 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				return { ...coreData, data: input.data };
 			}),
 
-		update: publicProcedure
+		update: protectedProcedure
 			.meta({
 				permission: permission.update,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					adminId: z.string(),
+					admin: z.string().optional(),
 					data: z.record(z.string(), z.any()),
 				}),
 			)
@@ -65,8 +93,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				const groupData = await context.storage.read<CoreGroupData>(input.id);
 				const admins = groupData.admins ?? [groupData.owner];
 
-				if (!admins.includes(input.adminId)) {
-					throw getError("UNAUTHORIZED", "Only admins can update group data");
+				if (!context.system) {
+					const userId = context.user?.id;
+
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (!admins.includes(userId)) {
+						throw getError("UNAUTHORIZED", "Only admins can update group data");
+					}
 				}
 
 				const docId = context.tools.generateDocId(input.id);
@@ -74,22 +112,24 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				return await context.storage.updateDoc(docId, input.data);
 			}),
 
-		delete: publicProcedure
+		delete: protectedProcedure
 			.meta({
 				permission: permission.delete,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					adminId: z.string(),
 					data: z.record(z.string(), z.any()),
 				}),
 			)
 			.handler(async ({ context, input }) => {
 				const groupData = await context.storage.read<CoreGroupData>(input.id);
 
-				if (groupData.owner !== input.adminId) {
-					throw getError("UNAUTHORIZED", "Only owner can delete group");
+				if (!context.system) {
+					const userId = context.user?.id;
+					if (groupData.owner !== userId) {
+						throw getError("UNAUTHORIZED", "Only owner can delete group");
+					}
 				}
 
 				const id = input.id;
@@ -99,21 +139,29 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				await context.storage.delete(id);
 			}),
 
-		join: publicProcedure
+		join: protectedProcedure
 			.meta({
 				permission: permission.join,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					userId: z.string(),
+					user: z.string().optional(),
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const userId = context.system ? input.user : context.user?.id;
+
+				if (!userId)
+					throw getError(
+						"UNAUTHORIZED",
+						context.system
+							? "User ID is not provided"
+							: "You are not authorized to access this action",
+					);
+
 				const groupData = await context.storage.read<CoreGroupData>(input.id);
-				const updatedMembers = [
-					...new Set([...groupData.members, input.userId]),
-				];
+				const updatedMembers = [...new Set([...groupData.members, userId])];
 
 				return await context.storage.update(input.id, {
 					members: updatedMembers,
@@ -121,20 +169,30 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				});
 			}),
 
-		leave: publicProcedure
+		leave: protectedProcedure
 			.meta({
 				permission: permission.leave,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					userId: z.string(),
+					user: z.string().optional(),
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const userId = context.system ? input.user : context.user?.id;
+
+				if (!userId)
+					throw getError(
+						"UNAUTHORIZED",
+						context.system
+							? "User ID is not provided"
+							: "You are not authorized to access this action",
+					);
+
 				const groupData = await context.storage.read<CoreGroupData>(input.id);
 				const updatedMembers = groupData.members.filter(
-					(id: string) => id !== input.userId,
+					(id: string) => id !== userId,
 				);
 
 				return await context.storage.update(input.id, {
@@ -143,7 +201,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				});
 			}),
 
-		getMembers: publicProcedure
+		getMembers: protectedProcedure
 			.meta({
 				permission: permission.getMembers,
 			})
@@ -153,31 +211,57 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
-				return groupData.members;
+				const data = await context.storage.read<CoreGroupData>(input.id);
+
+				if (!context.system) {
+					const userId = context.user?.id;
+
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (!data.members.includes(userId)) {
+						throw getError(
+							"UNAUTHORIZED",
+							"Only authorized members can read group members data",
+						);
+					}
+				}
+
+				return data.members;
 			}),
 
-		addMembers: publicProcedure
+		addMembers: protectedProcedure
 			.meta({
 				permission: permission.addMembers,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					adminId: z.string(),
-					userIds: z.array(z.string()),
+					users: z.array(z.string()),
 				}),
 			)
 			.handler(async ({ context, input }) => {
 				const groupData = await context.storage.read<CoreGroupData>(input.id);
 				const admins = groupData.admins ?? [groupData.owner];
 
-				if (!admins.includes(input.adminId)) {
-					throw getError("UNAUTHORIZED", "Only admins can add members");
+				if (!context.system) {
+					const userId = context.user?.id;
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (!admins.includes(userId)) {
+						throw getError("UNAUTHORIZED", "Only admins can add members");
+					}
 				}
 
 				const updatedMembers = [
-					...new Set([...groupData.members, ...input.userIds]),
+					...new Set([...groupData.members, ...input.users]),
 				];
 
 				return await context.storage.update(input.id, {
@@ -186,26 +270,33 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				});
 			}),
 
-		removeMembers: publicProcedure
+		removeMembers: protectedProcedure
 			.meta({
 				permission: permission.removeMembers,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					adminId: z.string(),
-					userIds: z.array(z.string()),
+					users: z.array(z.string()),
 				}),
 			)
 			.handler(async ({ context, input }) => {
 				const groupData = await context.storage.read<CoreGroupData>(input.id);
 				const admins = groupData.admins ?? [groupData.owner];
 
-				if (!admins.includes(input.adminId)) {
-					throw getError("UNAUTHORIZED", "Only admins can remove members");
+				if (!context.system) {
+					const userId = context.user?.id;
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+					if (!admins.includes(userId)) {
+						throw getError("UNAUTHORIZED", "Only admins can remove members");
+					}
 				}
 
-				const userIdsSet = new Set(input.userIds);
+				const userIdsSet = new Set(input.users);
 				const updatedMembers = groupData.members.filter(
 					(id: string) => !userIdsSet.has(id),
 				);
@@ -216,26 +307,34 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				});
 			}),
 
-		makeAdmin: publicProcedure
+		makeAdmin: protectedProcedure
 			.meta({
 				permission: permission.makeAdmin,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					currentAdminId: z.string(),
-					userId: z.string(),
+					user: z.string(),
 				}),
 			)
 			.handler(async ({ context, input }) => {
 				const groupData = await context.storage.read<CoreGroupData>(input.id);
 				const admins = groupData.admins ?? [];
 
-				if (groupData.owner !== input.currentAdminId) {
-					throw getError("UNAUTHORIZED", "Only owner can promote admins");
+				if (!context.system) {
+					const userId = context.user?.id;
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (groupData.owner !== userId) {
+						throw getError("UNAUTHORIZED", "Only owner can promote admins");
+					}
 				}
 
-				const updatedAdmins = [...new Set([...admins, input.userId])];
+				const updatedAdmins = [...new Set([...admins, input.user])];
 
 				return await context.storage.update(input.id, {
 					admins: updatedAdmins,
@@ -243,28 +342,34 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				});
 			}),
 
-		removeAdmin: publicProcedure
+		removeAdmin: protectedProcedure
 			.meta({
 				permission: permission.removeAdmin,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					currentAdminId: z.string(),
-					userId: z.string(),
+					user: z.string(),
 				}),
 			)
 			.handler(async ({ context, input }) => {
 				const groupData = await context.storage.read<CoreGroupData>(input.id);
 				const admins = groupData.admins ?? [];
 
-				if (groupData.owner !== input.currentAdminId) {
-					throw getError("UNAUTHORIZED", "Only owner can demote admins");
+				if (!context.system) {
+					const userId = context.user?.id;
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (groupData.owner !== userId) {
+						throw getError("UNAUTHORIZED", "Only owner can demote admins");
+					}
 				}
 
-				const updatedAdmins = admins.filter(
-					(id: string) => id !== input.userId,
-				);
+				const updatedAdmins = admins.filter((id: string) => id !== input.user);
 
 				return await context.storage.update(input.id, {
 					admins: updatedAdmins,
@@ -272,7 +377,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				});
 			}),
 
-		getMessages: publicProcedure
+		getMessages: protectedProcedure
 			.meta({
 				permission: permission.getMessages,
 			})
@@ -282,49 +387,103 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				if (!context.system) {
+					const data = await context.storage.read<CoreGroupData>(input.id);
+					const userId = context.user?.id;
+
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (!data.members.includes(userId)) {
+						throw getError(
+							"UNAUTHORIZED",
+							"Only authorized members can read group data",
+						);
+					}
+				}
+
 				return await context.storage.getMessages(input.id);
 			}),
 
-		appendMessage: publicProcedure
+		appendMessage: protectedProcedure
 			.meta({
 				permission: permission.appendMessage,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					userId: z.string(),
+					user: z.string().optional(),
 					data: z.record(z.string(), z.any()),
 				}),
 			)
 			.handler(async ({ context, input }) => {
 				const newMessage = {
-					id: context.tools.generateId(),
-					from: input.userId,
+					id: context.tools.generateMessageId(),
 					data: input.data,
 				};
 
-				await context.storage.appendMessage(input.id, newMessage);
+				let from: string;
+
+				if (!context.system) {
+					const data = await context.storage.read<CoreGroupData>(input.id);
+					const userId = context.user?.id;
+
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (!data.members.includes(userId)) {
+						throw getError(
+							"UNAUTHORIZED",
+							"Only authorized members can message in group",
+						);
+					}
+
+					from = userId;
+				} else {
+					if (!input.user)
+						throw getError("FORBIDDEN", "User ID is not provided");
+
+					from = input.user;
+				}
+
+				await context.storage.appendMessage(input.id, { ...newMessage, from });
 
 				return newMessage;
 			}),
 
-		deleteMessage: publicProcedure
+		deleteMessage: protectedProcedure
 			.meta({
 				permission: permission.deleteMessage,
 			})
 			.input(
 				z.object({
 					id: z.string(),
-					adminId: z.string(),
 					messageId: z.string(),
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
-				const admins = groupData.admins ?? [groupData.owner];
+				if (!context.system) {
+					const data = await context.storage.read<CoreGroupData>(input.id);
+					const userId = context.user?.id;
 
-				if (!admins.includes(input.adminId)) {
-					throw getError("UNAUTHORIZED", "Only admins can delete messages");
+					if (!userId)
+						throw getError(
+							"UNAUTHORIZED",
+							"You are not authorized to access this action",
+						);
+
+					if (!data.members.includes(userId)) {
+						throw getError(
+							"UNAUTHORIZED",
+							"Only authorized members can message in group",
+						);
+					}
 				}
 
 				await context.storage.deleteMessage(input.id, input.messageId);
