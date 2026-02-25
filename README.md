@@ -4,7 +4,7 @@ Ever heard of better-auth? Same but for building chat
 ### Install
 
 ```bash
-npm i better-chats
+npm i better-chats @orpc/server
 ```
 
 ### Usage
@@ -46,6 +46,10 @@ export default app;
 ```
 
 ## Client
+
+```bash
+npm i @orpc/client @orpc/server
+```
 
 ```ts
 import { createORPCClient } from "@orpc/client";

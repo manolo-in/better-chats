@@ -2,7 +2,7 @@ import type { onError } from "@orpc/server";
 import type { Permission, StoragePlugin, WhoCanDo } from "./type.ts";
 
 export const convertToDefault = (props: {
-	permission: Partial<Permission<WhoCanDo>>;
+	permission: DeepPartial<Permission<WhoCanDo>>;
 	tools?: {
 		generateId?: () => string;
 		generateDocId?: (id: string) => string;

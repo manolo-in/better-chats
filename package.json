@@ -1,7 +1,7 @@
 {
 	"name": "better-chats",
 	"description": "Ever heard of better-auth? Same but for building chat",
-	"version": "0.0.1",
+	"version": "0.0.3",
 	"type": "module",
 	"main": "./dist/index.js",
 	"module": "./dist/index.mjs",
@@ -21,12 +21,12 @@
 			"import": "./dist/index.mjs",
 			"require": "./dist/index.js"
 		},
-		"storage": {
+		"./storage": {
 			"types": "./dist/storage/index.d.ts",
 			"import": "./dist/storage/index.mjs",
 			"require": "./dist/storage/index.js"
 		},
-		"client": {
+		"./client": {
 			"types": "./dist/client/index.d.ts",
 			"import": "./dist/client/index.mjs",
 			"require": "./dist/client/index.js"

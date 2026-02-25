@@ -25,6 +25,7 @@ export const betterChat = <UD extends UserData>(
 	const api = createRouterClient(apiRouter, {
 		context: {
 			system: true,
+			user: undefined,
 			storage,
 			tools,
 			permission,
