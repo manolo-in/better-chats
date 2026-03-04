@@ -1,5 +1,6 @@
 import type { onError } from "@orpc/server";
 import type { Permission, StoragePlugin, WhoCanDo } from "./type.ts";
+import type { DeepPartial } from "./types.d.ts";
 
 export const convertToDefault = (props: {
 	permission: DeepPartial<Permission<WhoCanDo>>;

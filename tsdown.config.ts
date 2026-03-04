@@ -9,6 +9,12 @@ export default defineConfig([
 		},
 	},
 	{
+		entry: ["src/type.ts"],
+		dts: {
+			sourcemap: false,
+		},
+	},
+	{
 		entry: ["src/storage/index.ts"],
 		format: ["cjs", "esm"],
 		dts: {

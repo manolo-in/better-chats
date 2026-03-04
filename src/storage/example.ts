@@ -12,8 +12,8 @@ export const storage = (): StoragePlugin => {
 		updateDoc: async (id, data) => ({}) as any,
 
 		delete: async (id) => {},
-		deleteDoc: async (id) => { },
-		
+		deleteDoc: async (id) => {},
+
 		getMessages: async (id) => [],
 		appendMessage: async (id) => {},
 		deleteMessage: async (id) => {},

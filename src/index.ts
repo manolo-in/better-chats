@@ -1,3 +1,4 @@
+import type * as ORPC from "@orpc/server";
 import { createRouterClient, onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { createGroupRouter } from "./api/group.ts";
@@ -12,7 +13,7 @@ import type {
 
 export const betterChat = <UD extends UserData>(
 	props: {
-		userCheck: UserCheckFunction;
+		userCheck: UserCheckFunction<UD>;
 	} & Parameters<typeof convertToDefault>[0],
 ) => {
 	const { storage, tools, permission } = convertToDefault(props);

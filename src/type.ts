@@ -89,7 +89,7 @@ export type Context<UD extends UserData = UserData> = (
 	ReturnType<typeof convertToDefault>;
 
 export type UserCheckFunction<
+	UD extends UserData,
 	PS = PermissionStrings,
-	UD = UserData,
 	GD = GroupData,
 > = (permission: PS, user: UD, chat: GD) => Promise<boolean> | boolean;
