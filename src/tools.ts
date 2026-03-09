@@ -1,13 +1,36 @@
 import type { onError } from "@orpc/server";
 import type { Permission, StoragePlugin, WhoCanDo } from "./type.ts";
 import type { DeepPartial } from "./types.d.ts";
+import { generateId } from "./utils.ts";
+
+export const convertToDefaultSystem = (props: {
+	/**
+	 * @default "/api/chat/"
+	 * */
+	basePath?: `/${string}`;
+}) => ({
+	basePath: "/api/chat/" as `/${string}`,
+	...props,
+});
 
 export const convertToDefault = (props: {
 	permission: DeepPartial<Permission<WhoCanDo>>;
 	tools?: {
+		/**
+		 * @default webcrypto.Crypto
+		 */
 		generateId?: () => string;
+		/**
+		 * @default (id: string) => `${id}_data`
+		 */
 		generateDocId?: (id: string) => string;
+		/**
+		 * @default (id: string) => `${id}_messages`
+		 */
 		generateMessageDocId?: (id: string) => string;
+		/**
+		 * @default webcrypto.Crypto
+		 */
 		generateMessageId?: () => string;
 		onError?: Parameters<typeof onError>[0];
 	};
@@ -16,16 +39,24 @@ export const convertToDefault = (props: {
 	return {
 		...props,
 		tools: {
-			generateId: () => `1234567890`,
+			generateId: () => generateId(),
 			generateDocId: (id: string) => `${id}_data`,
 			generateMessageDocId: (id: string) => `${id}_messages`,
-			generateMessageId: () => `1234567890`,
+			generateMessageId: () => generateId(),
 			onError: (error: unknown) => {
 				console.error(error);
 			},
 			...props.tools,
 		},
 		permission: {
+			anonymous: {
+				get: "user",
+				getMessages: "user",
+				appendMessage: "user",
+				deleteMessage: "user",
+				clearMessages: "user",
+				...props.permission.anonymous,
+			} as const,
 			group: {
 				get: "user",
 				create: "user",

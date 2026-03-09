@@ -24,6 +24,15 @@ export type StoragePlugin = {
 };
 
 export type Permission<T> = {
+	anonymous: {
+		get: T;
+
+		getMessages: T;
+		clearMessages: T;
+
+		appendMessage: T;
+		deleteMessage: T;
+	};
 	group: {
 		create: T;
 		get: T;
@@ -88,8 +97,8 @@ export type Context<UD extends UserData = UserData> = (
 ) &
 	ReturnType<typeof convertToDefault>;
 
-export type UserCheckFunction<
+export type HookFunction<
 	UD extends UserData,
+	EX extends {} = {},
 	PS = PermissionStrings,
-	GD = GroupData,
-> = (permission: PS, user: UD, chat: GD) => Promise<boolean> | boolean;
+> = (permission: PS, user: UD, data: EX) => Promise<boolean> | boolean;
