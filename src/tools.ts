@@ -40,8 +40,8 @@ export const convertToDefault = (props: {
 		...props,
 		tools: {
 			generateId: () => generateId(),
-			generateDocId: (id: string) => `${id}_data`,
-			generateMessageDocId: (id: string) => `${id}_messages`,
+			getDocId: (id: string) => `${id}_data`,
+			getMessageDocId: (id: string) => `${id}_messages`,
 			generateMessageId: () => generateId(),
 			onError: (error: unknown) => {
 				console.error(error);

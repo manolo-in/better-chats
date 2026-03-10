@@ -61,7 +61,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					);
 
 				const id = input.id ?? context.tools.generateId();
-				const docId = context.tools.generateDocId(id);
+				const docId = context.tools.getDocId(id);
 
 				const coreData = {
 					id,
@@ -107,7 +107,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					}
 				}
 
-				const docId = context.tools.generateDocId(input.id);
+				const docId = context.tools.getDocId(input.id);
 
 				return await context.storage.updateDoc(docId, input.data);
 			}),
@@ -133,7 +133,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}
 
 				const id = input.id;
-				const docId = context.tools.generateDocId(id);
+				const docId = context.tools.getDocId(id);
 
 				await context.storage.deleteDoc(docId);
 				await context.storage.delete(id);
@@ -423,6 +423,8 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const mid = context.tools.getMessageDocId(input.id);
+
 				if (!context.system) {
 					const data = await context.storage.read<CoreGroupData>(input.id);
 					const userId = context.user?.id;
@@ -441,7 +443,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					}
 				}
 
-				return await context.storage.getMessages(input.id);
+				return await context.storage.getMessages(mid);
 			}),
 
 		appendMessage: protectedProcedure
@@ -456,6 +458,8 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const mid = context.tools.getMessageDocId(input.id);
+
 				const newMessage = {
 					id: context.tools.generateMessageId(),
 					data: input.data,
@@ -488,7 +492,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					from = input.user;
 				}
 
-				await context.storage.appendMessage(input.id, { ...newMessage, from });
+				await context.storage.appendMessage(mid, { ...newMessage, from });
 
 				return newMessage;
 			}),
@@ -504,6 +508,8 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const mid = context.tools.getMessageDocId(input.id);
+
 				if (!context.system) {
 					const data = await context.storage.read<CoreGroupData>(input.id);
 					const userId = context.user?.id;
@@ -522,6 +528,6 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					}
 				}
 
-				await context.storage.deleteMessage(input.id, input.messageId);
+				await context.storage.deleteMessage(mid, input.messageId);
 			}),
 	}) satisfies Permission<any>["group"];

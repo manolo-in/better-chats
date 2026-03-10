@@ -21,6 +21,7 @@ export type StoragePlugin = {
 		message: MessageData<MD>,
 	) => Promise<void>;
 	deleteMessage: (groupId: string, messageId: string) => Promise<void>;
+	clearMessages: (groupId: string) => Promise<void>;
 };
 
 export type Permission<T> = {
@@ -83,6 +84,17 @@ export type MessageData<MD = {}> = {
 	id: string;
 	from: string;
 	data: MD;
+};
+
+/**
+ * Both participants are known users, but one's identity is hidden from the other
+ */
+export type CoreAnonymousData = {
+	id: string;
+	visibleUser: string;
+	anonymousUser: string;
+	createdAt: number;
+	updatedAt: number;
 };
 
 export type Context<UD extends UserData = UserData> = (
