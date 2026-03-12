@@ -24,7 +24,7 @@ export type StoragePlugin = {
 	clearMessages: (groupId: string) => Promise<void>;
 };
 
-export type Permission<T> = {
+export type APIs<T = any> = {
 	anonymous: {
 		get: T;
 
@@ -55,6 +55,8 @@ export type Permission<T> = {
 		deleteMessage: T;
 	};
 };
+
+export type Permission<T> = APIs<T>;
 
 export type PermissionStrings<P = Permission<any>> = {
 	[K in keyof P]: {
@@ -114,3 +116,5 @@ export type HookFunction<
 	EX extends {} = {},
 	PS = PermissionStrings,
 > = (permission: PS, user: UD, data: EX) => Promise<boolean> | boolean;
+
+export type UserCheck<UD extends UserData> = (user: UD) => Promise<void> | void;

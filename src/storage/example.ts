@@ -17,5 +17,6 @@ export const storage = (): StoragePlugin => {
 		getMessages: async (id) => [],
 		appendMessage: async (id) => {},
 		deleteMessage: async (id) => {},
+		clearMessages: async (id) => {},
 	};
 };

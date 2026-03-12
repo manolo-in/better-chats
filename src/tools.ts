@@ -1,6 +1,6 @@
 import type { onError } from "@orpc/server";
 import type { Permission, StoragePlugin, WhoCanDo } from "./type.ts";
-import type { DeepPartial } from "./types.d.ts";
+import type { DeepPartial, SecondStepPartial } from "./types.d.ts";
 import { generateId } from "./utils.ts";
 
 export const convertToDefaultSystem = (props: {
@@ -8,13 +8,34 @@ export const convertToDefaultSystem = (props: {
 	 * @default "/api/chat/"
 	 * */
 	basePath?: `/${string}`;
+	api?: Partial<
+		{
+			[K in keyof Permission<any>]: boolean;
+		} & {
+			test: boolean;
+		}
+	>;
 }) => ({
+	api: {
+		test: false,
+		anonymous: false,
+		group: false,
+		...props.api,
+	} as const,
 	basePath: "/api/chat/" as `/${string}`,
 	...props,
 });
 
 export const convertToDefault = (props: {
-	permission: DeepPartial<Permission<WhoCanDo>>;
+	permission?: DeepPartial<Permission<WhoCanDo>>;
+	hooks?: SecondStepPartial<
+		Permission<
+			Partial<{
+				before: () => Promise<boolean>;
+				after: () => Promise<void>;
+			}>
+		>
+	>;
 	tools?: {
 		/**
 		 * @default webcrypto.Crypto
@@ -38,6 +59,9 @@ export const convertToDefault = (props: {
 }) => {
 	return {
 		...props,
+		hooks: {
+			...props.hooks,
+		},
 		tools: {
 			generateId: () => generateId(),
 			getDocId: (id: string) => `${id}_data`,
@@ -55,7 +79,7 @@ export const convertToDefault = (props: {
 				appendMessage: "user",
 				deleteMessage: "user",
 				clearMessages: "user",
-				...props.permission.anonymous,
+				...props.permission?.anonymous,
 			} as const,
 			group: {
 				get: "user",
@@ -76,7 +100,7 @@ export const convertToDefault = (props: {
 				getMessages: "user",
 				appendMessage: "user",
 				deleteMessage: "user",
-				...props.permission.group,
+				...props.permission?.group,
 			} as const,
 		},
 	};

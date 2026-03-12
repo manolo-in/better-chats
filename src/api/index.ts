@@ -8,7 +8,7 @@ export const testRouter = {
 				permission: "user",
 			})
 			.handler(({ input }) => {
-				return "Hi Man";
+				return "Only users can see this";
 			}),
 		system: publicProcedure
 			.route({ method: "GET" })
@@ -16,7 +16,7 @@ export const testRouter = {
 				permission: "system",
 			})
 			.handler(({ input }) => {
-				return "Hi Man";
+				return "Only system can see this";
 			}),
 	},
 };

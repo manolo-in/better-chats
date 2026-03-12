@@ -4,3 +4,15 @@ export const generateId = () => {
 		"",
 	);
 };
+
+export const createHooks = (
+	props?: Partial<{
+		before: () => Promise<boolean>;
+		after: () => Promise<void>;
+	}>,
+): Required<NonNullable<typeof props>> => {
+	return {
+		before: props?.before ?? (async () => true),
+		after: props?.after ?? (async () => {}),
+	};
+};
