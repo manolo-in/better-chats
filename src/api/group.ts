@@ -1,6 +1,7 @@
 import z from "zod";
 import { getError } from "@/error.ts";
 import type { CoreGroupData, Permission, WhoCanDo } from "@/type.ts";
+import { createHooks, trys } from "@/utils.ts";
 import { protectedProcedure } from "./procedure.ts";
 
 export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
@@ -15,7 +16,14 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const data = await context.storage.read<CoreGroupData>(input.id);
+				const { before, after } = createHooks(context.hooks, ["group", "get"]);
+				await before();
+
+				const [error, data] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (error) throw getError("NOT_FOUND", "Group not found");
 
 				if (!context.system) {
 					const userId = context.user?.id;
@@ -34,6 +42,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					}
 				}
 
+				await after();
 				return data;
 			}),
 
@@ -50,6 +59,12 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"create",
+				]);
+				await before();
+
 				const userId = context.system ? input.owner : context.user?.id;
 
 				if (!userId)
@@ -72,9 +87,21 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					updatedAt: Date.now(),
 				} satisfies CoreGroupData;
 
-				await context.storage.write<CoreGroupData>(id, coreData);
-				await context.storage.writeDoc(docId, input.data);
+				const [writeError] = await trys(
+					context.storage.write<CoreGroupData>(id, coreData),
+				);
 
+				if (writeError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to create group");
+
+				const [docError] = await trys(
+					context.storage.writeDoc(docId, input.data),
+				);
+
+				if (docError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to create group");
+
+				await after();
 				return { ...coreData, data: input.data };
 			}),
 
@@ -90,7 +117,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"update",
+				]);
+				await before();
+
+				const [readError, groupData] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Group not found");
+
 				const admins = groupData.admins ?? [groupData.owner];
 
 				if (!context.system) {
@@ -109,7 +147,15 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 
 				const docId = context.tools.getDocId(input.id);
 
-				return await context.storage.updateDoc(docId, input.data);
+				const [updateError, result] = await trys(
+					context.storage.updateDoc(docId, input.data),
+				);
+
+				if (updateError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to update group");
+
+				await after();
+				return result;
 			}),
 
 		delete: protectedProcedure
@@ -123,7 +169,17 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"delete",
+				]);
+				await before();
+
+				const [readError, groupData] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Group not found");
 
 				if (!context.system) {
 					const userId = context.user?.id;
@@ -135,8 +191,17 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				const id = input.id;
 				const docId = context.tools.getDocId(id);
 
-				await context.storage.deleteDoc(docId);
-				await context.storage.delete(id);
+				const [deleteDocError] = await trys(context.storage.deleteDoc(docId));
+
+				if (deleteDocError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to delete group");
+
+				const [deleteError] = await trys(context.storage.delete(id));
+
+				if (deleteError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to delete group");
+
+				await after();
 			}),
 
 		join: protectedProcedure
@@ -150,6 +215,9 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, ["group", "join"]);
+				await before();
+
 				const userId = context.system ? input.user : context.user?.id;
 
 				if (!userId)
@@ -160,13 +228,26 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 							: "You are not authorized to access this action",
 					);
 
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
+				const [readError, groupData] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Group not found");
+
 				const updatedMembers = [...new Set([...groupData.members, userId])];
 
-				return await context.storage.update(input.id, {
-					members: updatedMembers,
-					updatedAt: Date.now(),
-				});
+				const [updateError, result] = await trys(
+					context.storage.update(input.id, {
+						members: updatedMembers,
+						updatedAt: Date.now(),
+					}),
+				);
+
+				if (updateError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to join group");
+
+				await after();
+				return result;
 			}),
 
 		leave: protectedProcedure
@@ -180,6 +261,12 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"leave",
+				]);
+				await before();
+
 				const userId = context.system ? input.user : context.user?.id;
 
 				if (!userId)
@@ -190,15 +277,28 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 							: "You are not authorized to access this action",
 					);
 
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
+				const [readError, groupData] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Group not found");
+
 				const updatedMembers = groupData.members.filter(
 					(id: string) => id !== userId,
 				);
 
-				return await context.storage.update(input.id, {
-					members: updatedMembers,
-					updatedAt: Date.now(),
-				});
+				const [updateError, result] = await trys(
+					context.storage.update(input.id, {
+						members: updatedMembers,
+						updatedAt: Date.now(),
+					}),
+				);
+
+				if (updateError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to leave group");
+
+				await after();
+				return result;
 			}),
 
 		getMembers: protectedProcedure
@@ -211,7 +311,17 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const data = await context.storage.read<CoreGroupData>(input.id);
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"getMembers",
+				]);
+				await before();
+
+				const [error, data] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (error) throw getError("NOT_FOUND", "Group not found");
 
 				if (!context.system) {
 					const userId = context.user?.id;
@@ -230,6 +340,7 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					}
 				}
 
+				await after();
 				return data.members;
 			}),
 
@@ -244,7 +355,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"addMembers",
+				]);
+				await before();
+
+				const [readError, groupData] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Group not found");
+
 				const admins = groupData.admins ?? [groupData.owner];
 
 				if (!context.system) {
@@ -275,10 +397,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					...new Set([...groupData.members, ...validUsers]),
 				];
 
-				return await context.storage.update(input.id, {
-					members: updatedMembers,
-					updatedAt: Date.now(),
-				});
+				const [updateError, result] = await trys(
+					context.storage.update(input.id, {
+						members: updatedMembers,
+						updatedAt: Date.now(),
+					}),
+				);
+
+				if (updateError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to add members");
+
+				await after();
+				return result;
 			}),
 
 		removeMembers: protectedProcedure
@@ -292,7 +422,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"removeMembers",
+				]);
+				await before();
+
+				const [readError, groupData] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Group not found");
+
 				const admins = groupData.admins ?? [groupData.owner];
 
 				if (!context.system) {
@@ -321,10 +462,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					(id: string) => !userIdsSet.has(id),
 				);
 
-				return await context.storage.update(input.id, {
-					members: updatedMembers,
-					updatedAt: Date.now(),
-				});
+				const [updateError, result] = await trys(
+					context.storage.update(input.id, {
+						members: updatedMembers,
+						updatedAt: Date.now(),
+					}),
+				);
+
+				if (updateError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to remove members");
+
+				await after();
+				return result;
 			}),
 
 		makeAdmin: protectedProcedure
@@ -338,7 +487,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"makeAdmin",
+				]);
+				await before();
+
+				const [readError, groupData] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Group not found");
+
 				const admins = groupData.admins ?? [];
 
 				if (!context.system) {
@@ -364,10 +524,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 
 				const updatedAdmins = [...new Set([...admins, input.user])];
 
-				return await context.storage.update(input.id, {
-					admins: updatedAdmins,
-					updatedAt: Date.now(),
-				});
+				const [updateError, result] = await trys(
+					context.storage.update(input.id, {
+						admins: updatedAdmins,
+						updatedAt: Date.now(),
+					}),
+				);
+
+				if (updateError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to make admin");
+
+				await after();
+				return result;
 			}),
 
 		removeAdmin: protectedProcedure
@@ -381,7 +549,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const groupData = await context.storage.read<CoreGroupData>(input.id);
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"removeAdmin",
+				]);
+				await before();
+
+				const [readError, groupData] = await trys(
+					context.storage.read<CoreGroupData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Group not found");
+
 				const admins = groupData.admins ?? [];
 
 				if (!context.system) {
@@ -407,10 +586,18 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					);
 				}
 
-				return await context.storage.update(input.id, {
-					admins: updatedAdmins,
-					updatedAt: Date.now(),
-				});
+				const [updateError, result] = await trys(
+					context.storage.update(input.id, {
+						admins: updatedAdmins,
+						updatedAt: Date.now(),
+					}),
+				);
+
+				if (updateError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to remove admin");
+
+				await after();
+				return result;
 			}),
 
 		getMessages: protectedProcedure
@@ -423,10 +610,21 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"getMessages",
+				]);
+				await before();
+
 				const mid = context.tools.getMessageDocId(input.id);
 
 				if (!context.system) {
-					const data = await context.storage.read<CoreGroupData>(input.id);
+					const [readError, data] = await trys(
+						context.storage.read<CoreGroupData>(input.id),
+					);
+
+					if (readError) throw getError("NOT_FOUND", "Group not found");
+
 					const userId = context.user?.id;
 
 					if (!userId)
@@ -443,7 +641,14 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					}
 				}
 
-				return await context.storage.getMessages(mid);
+				const [messagesError, messages] = await trys(
+					context.storage.getMessages(mid),
+				);
+
+				if (messagesError) throw getError("NOT_FOUND", "Messages not found");
+
+				await after();
+				return messages;
 			}),
 
 		appendMessage: protectedProcedure
@@ -458,6 +663,12 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"appendMessage",
+				]);
+				await before();
+
 				const mid = context.tools.getMessageDocId(input.id);
 
 				const newMessage = {
@@ -468,7 +679,12 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				let from: string;
 
 				if (!context.system) {
-					const data = await context.storage.read<CoreGroupData>(input.id);
+					const [readError, data] = await trys(
+						context.storage.read<CoreGroupData>(input.id),
+					);
+
+					if (readError) throw getError("NOT_FOUND", "Group not found");
+
 					const userId = context.user?.id;
 
 					if (!userId)
@@ -492,8 +708,14 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					from = input.user;
 				}
 
-				await context.storage.appendMessage(mid, { ...newMessage, from });
+				const [appendError] = await trys(
+					context.storage.appendMessage(mid, { ...newMessage, from }),
+				);
 
+				if (appendError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to append message");
+
+				await after();
 				return newMessage;
 			}),
 
@@ -508,10 +730,21 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"group",
+					"deleteMessage",
+				]);
+				await before();
+
 				const mid = context.tools.getMessageDocId(input.id);
 
 				if (!context.system) {
-					const data = await context.storage.read<CoreGroupData>(input.id);
+					const [readError, data] = await trys(
+						context.storage.read<CoreGroupData>(input.id),
+					);
+
+					if (readError) throw getError("NOT_FOUND", "Group not found");
+
 					const userId = context.user?.id;
 
 					if (!userId)
@@ -528,6 +761,13 @@ export const createGroupRouter = (permission: Permission<WhoCanDo>["group"]) =>
 					}
 				}
 
-				await context.storage.deleteMessage(mid, input.messageId);
+				const [deleteError] = await trys(
+					context.storage.deleteMessage(mid, input.messageId),
+				);
+
+				if (deleteError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to delete message");
+
+				await after();
 			}),
 	}) satisfies Permission<any>["group"];

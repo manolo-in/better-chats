@@ -1,7 +1,7 @@
 import z from "zod";
 import { getError } from "@/error.ts";
 import type { CoreAnonymousData, Permission, WhoCanDo } from "@/type.ts";
-import { createHooks } from "@/utils.ts";
+import { createHooks, trys } from "@/utils.ts";
 import { protectedProcedure } from "./procedure.ts";
 
 export const createAnonymousRouter = (
@@ -18,7 +18,17 @@ export const createAnonymousRouter = (
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const data = await context.storage.read<CoreAnonymousData>(input.id);
+				const { before, after } = createHooks(context.hooks, [
+					"anonymous",
+					"get",
+				]);
+				await before();
+
+				const [error, data] = await trys(
+					context.storage.read<CoreAnonymousData>(input.id),
+				);
+
+				if (error) throw getError("NOT_FOUND", "Chat not found");
 
 				if (!context.system) {
 					const userId = context.user?.id;
@@ -46,6 +56,7 @@ export const createAnonymousRouter = (
 					}
 				}
 
+				await after();
 				return data;
 			}),
 
@@ -59,13 +70,31 @@ export const createAnonymousRouter = (
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"anonymous",
+					"getMessages",
+				]);
+				await before();
+
 				const mid = context.tools.getMessageDocId(input.id);
 
 				if (context.system) {
-					return await context.storage.getMessages(mid);
+					const [error, messages] = await trys(
+						context.storage.getMessages(mid),
+					);
+
+					if (error) throw getError("NOT_FOUND", "Messages not found");
+
+					await after();
+					return messages;
 				}
 
-				const data = await context.storage.read<CoreAnonymousData>(input.id);
+				const [readError, data] = await trys(
+					context.storage.read<CoreAnonymousData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Chat not found");
+
 				const userId = context.user?.id;
 
 				if (!userId)
@@ -81,9 +110,14 @@ export const createAnonymousRouter = (
 					);
 				}
 
-				const messages = await context.storage.getMessages(mid);
+				const [messagesError, messages] = await trys(
+					context.storage.getMessages(mid),
+				);
+
+				if (messagesError) throw getError("NOT_FOUND", "Messages not found");
 
 				if (userId === data.visibleUser) {
+					await after();
 					return messages.map((msg) =>
 						msg.from === data.anonymousUser
 							? { ...msg, from: "anonymous" }
@@ -91,6 +125,7 @@ export const createAnonymousRouter = (
 					);
 				}
 
+				await after();
 				return messages;
 			}),
 
@@ -104,14 +139,30 @@ export const createAnonymousRouter = (
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"anonymous",
+					"clearMessages",
+				]);
+				await before();
+
 				const mid = context.tools.getMessageDocId(input.id);
 
 				if (context.system) {
-					await context.storage.clearMessages(mid);
+					const [error] = await trys(context.storage.clearMessages(mid));
+
+					if (error)
+						throw getError("INTERNAL_SERVER_ERROR", "Failed to clear messages");
+
+					await after();
 					return { success: true };
 				}
 
-				const data = await context.storage.read<CoreAnonymousData>(input.id);
+				const [readError, data] = await trys(
+					context.storage.read<CoreAnonymousData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Chat not found");
+
 				const userId = context.user?.id;
 
 				if (!userId)
@@ -127,7 +178,12 @@ export const createAnonymousRouter = (
 					);
 				}
 
-				await context.storage.clearMessages(mid);
+				const [clearError] = await trys(context.storage.clearMessages(mid));
+
+				if (clearError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to clear messages");
+
+				await after();
 				return { success: true };
 			}),
 
@@ -143,11 +199,19 @@ export const createAnonymousRouter = (
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"anonymous",
+					"appendMessage",
+				]);
+				await before();
+
 				const mid = context.tools.getMessageDocId(input.id);
 
-				const chatData = await context.storage.read<CoreAnonymousData>(
-					input.id,
+				const [readError, chatData] = await trys(
+					context.storage.read<CoreAnonymousData>(input.id),
 				);
+
+				if (readError) throw getError("NOT_FOUND", "Chat not found");
 
 				const newMessage = {
 					id: context.tools.generateMessageId(),
@@ -183,8 +247,14 @@ export const createAnonymousRouter = (
 					from = input.user;
 				}
 
-				await context.storage.appendMessage(mid, { ...newMessage, from });
+				const [appendError] = await trys(
+					context.storage.appendMessage(mid, { ...newMessage, from }),
+				);
 
+				if (appendError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to append message");
+
+				await after();
 				return newMessage;
 			}),
 
@@ -199,14 +269,32 @@ export const createAnonymousRouter = (
 				}),
 			)
 			.handler(async ({ context, input }) => {
+				const { before, after } = createHooks(context.hooks, [
+					"anonymous",
+					"deleteMessage",
+				]);
+				await before();
+
 				const mid = context.tools.getMessageDocId(input.id);
 
 				if (context.system) {
-					await context.storage.deleteMessage(mid, input.messageId);
+					const [error] = await trys(
+						context.storage.deleteMessage(mid, input.messageId),
+					);
+
+					if (error)
+						throw getError("INTERNAL_SERVER_ERROR", "Failed to delete message");
+
+					await after();
 					return { success: true };
 				}
 
-				const data = await context.storage.read<CoreAnonymousData>(input.id);
+				const [readError, data] = await trys(
+					context.storage.read<CoreAnonymousData>(input.id),
+				);
+
+				if (readError) throw getError("NOT_FOUND", "Chat not found");
+
 				const userId = context.user?.id;
 
 				if (!userId)
@@ -222,7 +310,14 @@ export const createAnonymousRouter = (
 					);
 				}
 
-				await context.storage.deleteMessage(mid, input.messageId);
+				const [deleteError] = await trys(
+					context.storage.deleteMessage(mid, input.messageId),
+				);
+
+				if (deleteError)
+					throw getError("INTERNAL_SERVER_ERROR", "Failed to delete message");
+
+				await after();
 				return { success: true };
 			}),
 	}) satisfies Permission<any>["anonymous"];

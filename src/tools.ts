@@ -16,14 +16,14 @@ export const convertToDefaultSystem = (props: {
 		}
 	>;
 }) => ({
+	basePath: "/api/chat/" as `/${string}`,
+	...props,
 	api: {
 		test: false,
 		anonymous: false,
 		group: false,
 		...props.api,
 	} as const,
-	basePath: "/api/chat/" as `/${string}`,
-	...props,
 });
 
 export const convertToDefault = (props: {

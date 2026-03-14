@@ -1,7 +1,7 @@
 {
 	"name": "better-chats",
 	"description": "Ever heard of better-auth? Same but for building chat",
-	"version": "0.0.51",
+	"version": "0.0.7-beta",
 	"type": "module",
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
@@ -10,6 +10,7 @@
 		"dist/**/*"
 	],
 	"scripts": {
+		"prepublishOnly": "bun run build",
 		"build": "tsdown",
 		"build:watch": "tsdown --watch",
 		"type-check": "tsc --noEmit"
