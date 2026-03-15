@@ -1,34 +1,56 @@
-import { createRouterClient, onError } from "@orpc/server";
+import {
+	type AnyRouter,
+	createRouterClient,
+	onError,
+	type RouterClient,
+} from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { createAnonymousRouter } from "./api/anonymous.ts";
 import { createGroupRouter } from "./api/group.ts";
 import { testRouter } from "./api/index.ts";
+import { protectedProcedure } from "./api/procedure.ts";
 import { convertToDefault, convertToDefaultSystem } from "./tools.ts";
-import type { APIs, UserCheck, UserData, WhoCanDo } from "./type.ts";
+import type { UserCheck, UserData, WhoCanDo } from "./type.ts";
 
-export const betterChat = <UD extends UserData>(
-	props: {
-		userCheck?: UserCheck<UD>;
-	} & Parameters<typeof convertToDefault>[0] &
-		Parameters<typeof convertToDefaultSystem>[0],
-) => {
+type BaseAPIs = {
+	group: ReturnType<typeof createGroupRouter>;
+	anonymous: ReturnType<typeof createAnonymousRouter>;
+} & typeof testRouter;
+
+export const betterChat = <UD extends UserData, AR extends AnyRouter>({
+	extraAPIs,
+	...props
+}: {
+	/**
+	 * To validate the user before processing the request.
+	 */
+	userCheck?: UserCheck<UD>;
+	/**
+	 * To add more custom APIs.
+	 */
+	extraAPIs?: (
+		procedure: typeof protectedProcedure,
+		api: RouterClient<BaseAPIs>,
+	) => AR;
+} & Parameters<typeof convertToDefault>[0] &
+	Parameters<typeof convertToDefaultSystem>[0]) => {
 	const { basePath, api: apiSelection } = convertToDefaultSystem(props);
 	const { storage, tools, permission, hooks } = convertToDefault(props);
-
-	const apiRouter = {
+	const baseAPIs = {
 		...testRouter,
 		group: createGroupRouter(permission.group),
 		anonymous: createAnonymousRouter(permission.anonymous),
-	} satisfies Partial<APIs>;
+	} satisfies BaseAPIs;
 
 	Object.entries(apiSelection).forEach((e) => {
 		const [key, value] = e;
-		if (!value && key in apiRouter) {
-			delete apiRouter[key];
+		if (!value && key in baseAPIs) {
+			delete baseAPIs[key];
 		}
 	});
 
-	const systemAPI = createRouterClient(apiRouter, {
+	const systemAPI = createRouterClient(baseAPIs, {
+		interceptors: [onError(tools.onError)],
 		context: {
 			system: true,
 			user: undefined,
@@ -39,8 +61,15 @@ export const betterChat = <UD extends UserData>(
 		},
 	});
 
+	const extendedAPI = {
+		...baseAPIs,
+		...(extraAPIs ? { extra: extraAPIs(protectedProcedure, systemAPI) } : {}),
+	} satisfies BaseAPIs & {
+		extra?: AnyRouter;
+	};
+
 	return {
-		$type: {} as typeof apiRouter,
+		$type: {} as Required<typeof extendedAPI>,
 		api: systemAPI,
 		handler: async (raw: Request, user: UD) => {
 			try {
@@ -50,7 +79,7 @@ export const betterChat = <UD extends UserData>(
 				return new Response("Unauthorized", { status: 401 });
 			}
 
-			const handler = new RPCHandler(apiRouter, {
+			const handler = new RPCHandler(extendedAPI, {
 				filter: ({ contract }) =>
 					!((contract["~orpc"].meta.permission as WhoCanDo) === "system"),
 				interceptors: [onError(tools.onError)],
