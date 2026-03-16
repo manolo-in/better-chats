@@ -1,22 +1,17 @@
-import { publicProcedure } from "./procedure.ts";
+import {
+	publicProcedure,
+	systemProcedure,
+	userProcedure,
+} from "./procedure.ts";
 
 export const testRouter = {
-	test: {
-		user: publicProcedure
-			.route({ method: "GET" })
-			.meta({
-				permission: "user",
-			})
-			.handler(({ input }) => {
-				return "Only users can see this";
-			}),
-		system: publicProcedure
-			.route({ method: "GET" })
-			.meta({
-				permission: "system",
-			})
-			.handler(({ input }) => {
-				return "Only system can see this";
-			}),
-	},
+	browser: publicProcedure.route({ method: "GET" }).handler(() => {
+		return "Only browser can see this";
+	}),
+	system: systemProcedure.route({ method: "GET" }).handler(() => {
+		return "Only system can see this";
+	}),
+	user: userProcedure.route({ method: "GET" }).handler(() => {
+		return "Only user can see this";
+	}),
 };

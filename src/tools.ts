@@ -1,6 +1,6 @@
 import type { onError } from "@orpc/server";
-import type { Permission, StoragePlugin, WhoCanDo } from "./type.ts";
-import type { DeepPartial, SecondStepPartial } from "./types.d.ts";
+import type { Permission, StoragePlugin } from "./type.ts";
+import type { SecondStepPartial } from "./types.d.ts";
 import { generateId } from "./utils.ts";
 
 export const convertToDefaultSystem = (props: {
@@ -27,7 +27,6 @@ export const convertToDefaultSystem = (props: {
 });
 
 export const convertToDefault = (props: {
-	permission?: DeepPartial<Permission<WhoCanDo>>;
 	hooks?: SecondStepPartial<
 		Permission<
 			Partial<{
@@ -71,37 +70,6 @@ export const convertToDefault = (props: {
 				console.error(error);
 			},
 			...props.tools,
-		},
-		permission: {
-			anonymous: {
-				get: "user",
-				getMessages: "user",
-				appendMessage: "user",
-				deleteMessage: "user",
-				clearMessages: "user",
-				...props.permission?.anonymous,
-			} as const,
-			group: {
-				get: "user",
-				create: "user",
-				update: "user",
-				delete: "user",
-
-				join: "user",
-				leave: "user",
-
-				getMembers: "user",
-				addMembers: "user",
-				removeMembers: "user",
-
-				makeAdmin: "user",
-				removeAdmin: "user",
-
-				getMessages: "user",
-				appendMessage: "user",
-				deleteMessage: "user",
-				...props.permission?.group,
-			} as const,
 		},
 	};
 };

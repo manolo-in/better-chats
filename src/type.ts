@@ -99,17 +99,11 @@ export type CoreAnonymousData = {
 	updatedAt: number;
 };
 
-export type Context<UD extends UserData = UserData> = (
-	| {
-			user: UD;
-			system: false;
-	  }
-	| {
-			user: undefined;
-			system: true;
-	  }
-) &
-	ReturnType<typeof convertToDefault>;
+export type Context<UD extends UserData = UserData> = {
+	user?: UD;
+	system?: boolean;
+	userCheck?: UserCheck<UD>;
+} & ReturnType<typeof convertToDefault>;
 
 export type HookFunction<
 	UD extends UserData,
@@ -117,4 +111,6 @@ export type HookFunction<
 	PS = PermissionStrings,
 > = (permission: PS, user: UD, data: EX) => Promise<boolean> | boolean;
 
-export type UserCheck<UD extends UserData> = (user: UD) => Promise<void> | void;
+export type UserCheck<UD extends UserData = UserData> = (
+	user?: UD,
+) => Promise<void> | void;
